@@ -6,9 +6,10 @@ import {StorageSpacePage} from "./StorageSpace";
 import {FundsPage} from "./Funds";
 import {StorageDealsPage} from "./Deals";
 import {DealPublishPage} from "./DealPublish";
+import {DealTransfersPage} from "./DealTransfers"
 
 function App(props) {
-    const [pageToShow, setPageToShow] = useState('storage-deals');
+    const [pageToShow, setPageToShow] = useState('deal-transfers');
 
     return (
         <div id="content">
@@ -56,6 +57,9 @@ var pages = [{
     }, {
         title: 'Deal Publish',
         pageType: 'deal-publish',
+    }, {
+        title: 'Deal Transfers',
+        pageType: 'deal-transfers',
     }
 ]
 
@@ -82,6 +86,8 @@ class Pages extends React.Component {
                 return <FundsPage key={page.pageType} />
             case 'deal-publish':
                 return <DealPublishPage key={page.pageType} />
+            case 'deal-transfers':
+                return <DealTransfersPage key={page.pageType} />
             default:
                 throw new Error("unrecognized page type " + page.pageType)
         }
