@@ -410,7 +410,7 @@ func (p *Provider) AddPieceToSector(ctx context.Context, deal smtypes.ProviderDe
 	for build.Clock.Since(curTime) < addPieceRetryTimeout {
 		if !xerrors.Is(err, sealing.ErrTooManySectorsSealing) {
 			if err != nil {
-				p.dealLogger.Warnw(deal.DealUuid, "failed to addPiece for deal, will-retry", err)
+				p.dealLogger.Warnw(deal.DealUuid, "failed to addPiece for deal, will-retry", err.Error())
 			}
 			break
 		}

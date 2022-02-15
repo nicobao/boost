@@ -246,7 +246,11 @@ func (p *Provider) transferAndVerify(ctx context.Context, pub event.Emitter, dea
 }
 
 func (p *Provider) waitForTransferFinish(ctx context.Context, handler transport.Handler, pub event.Emitter, deal *types.ProviderDealState) error {
-	defer handler.Close()
+	defer func() {
+		fmt.Println("\n Will wait for handler to close")
+		handler.Close()
+		fmt.Println("\n HANDLER CLOSED")
+	}()
 	defer p.transfers.complete(deal.DealUuid)
 
 	for {
@@ -263,6 +267,7 @@ func (p *Provider) waitForTransferFinish(ctx context.Context, handler transport.
 			p.fireEventDealUpdate(pub, deal)
 
 		case <-ctx.Done():
+			fmt.Println("\n Returning from waitForTransferFinish as context has been cancelled")
 			return ctx.Err()
 		}
 	}
@@ -499,7 +504,7 @@ func (p *Provider) updateCheckpoint(ctx context.Context, pub event.Emitter, deal
 	if err := p.dealsDB.Update(ctx, deal); err != nil {
 		return fmt.Errorf("failed to persist deal state: %w", err)
 	}
-	p.dealLogger.Infow(deal.DealUuid, "updated deal checkpoint in DB", "old checkpoint", prev, "new checkpoint", ckpt)
+	p.dealLogger.Infow(deal.DealUuid, "updated deal checkpoint in DB", "old checkpoint", prev.String(), "new checkpoint", ckpt.String())
 	p.fireEventDealUpdate(pub, deal)
 
 	return nil

@@ -333,7 +333,11 @@ func (t *transfer) doHttp(ctx context.Context, req *http.Request, dst io.Writer,
 	buf := make([]byte, readBufferSize)
 	limitR := io.LimitReader(resp.Body, toRead)
 	for {
+		if ctx.Err() != nil {
+			fmt.Println("\n CONTEXT HAS BEEN CANCELLED")
+		}
 		nr, readErr := limitR.Read(buf)
+		fmt.Println("\n STILL READING")
 
 		// if we read more than zero bytes, write whatever read.
 		if nr > 0 {
