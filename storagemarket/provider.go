@@ -341,6 +341,7 @@ func (p *Provider) Stop() {
 
 		p.cancel()
 		p.wg.Wait()
+		log.Infow("storage provider: finished stopping")
 	})
 }
 

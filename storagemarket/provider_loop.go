@@ -103,7 +103,10 @@ func (p *Provider) processDealRequest(deal *types.ProviderDealState) (bool, stri
 }
 
 func (p *Provider) loop() {
-	defer p.wg.Done()
+	defer func() {
+		p.wg.Done()
+		log.Info("LOOP RETURNING")
+	}()
 
 	for {
 		select {
@@ -157,6 +160,7 @@ func (p *Provider) loop() {
 			finishedDeal.done <- struct{}{}
 
 		case <-p.ctx.Done():
+			fmt.Println("\n Loop context cancelled")
 			return
 		}
 	}
