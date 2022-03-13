@@ -137,17 +137,18 @@ func (s *Libp2pCarServer) handler(w http.ResponseWriter, r *http.Request) {
 
 	// Get the peer ID from the RemoteAddr
 	pid, err := peer.Decode(r.RemoteAddr)
-	if err != nil {
-		log.Infow("data transfer request failed: parsing remote address as peer ID",
-			"remote-addr", r.RemoteAddr, "err", err)
-		http.Error(w, "Failed to parse remote address '"+r.RemoteAddr+"' as peer ID", http.StatusBadRequest)
-		return
+	//if err != nil {
+	//	log.Infow("data transfer request failed: parsing remote address as peer ID",
+	//		"remote-addr", r.RemoteAddr, "err", err)
+	//	http.Error(w, "Failed to parse remote address '"+r.RemoteAddr+"' as peer ID", http.StatusBadRequest)
+	//	return
+	//}
+	if err == nil {
+		// Protect the libp2p connection for the lifetime of the transfer
+		tag := uuid.New().String()
+		s.h.ConnManager().Protect(pid, tag)
+		defer s.h.ConnManager().Unprotect(pid, tag)
 	}
-
-	// Protect the libp2p connection for the lifetime of the transfer
-	tag := uuid.New().String()
-	s.h.ConnManager().Protect(pid, tag)
-	defer s.h.ConnManager().Unprotect(pid, tag)
 
 	// Get a block info cache for the CarOffsetWriter
 	bic := s.bicm.Get(authVal.PayloadCid)
@@ -249,8 +250,10 @@ func (s *Libp2pCarServer) sendCar(r *http.Request, w http.ResponseWriter, val *A
 	}}
 
 	// Get a channel that will be closed when the client closes the connection
-	stream := getConn(r).(gostream.Stream)
-	closeCh := s.streamMonitor.getCloseChan(stream.ID())
+	//stream := getConn(r).(gostream.Stream)
+	//closeCh := s.streamMonitor.getCloseChan(stream.ID())
+	closeCh := make(chan struct{})
+	close(closeCh)
 
 	// Send the content
 	http.ServeContent(writeErrWatcher, r, "", time.Time{}, readEmitter)

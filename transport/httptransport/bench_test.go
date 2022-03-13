@@ -8,6 +8,12 @@ import (
 	"testing"
 	"time"
 
+	logging "github.com/ipfs/go-log/v2"
+
+	"github.com/multiformats/go-multiaddr"
+
+	car2 "github.com/filecoin-project/boost/car"
+
 	"github.com/filecoin-project/boost/testutil"
 
 	"github.com/filecoin-project/boost/transport/types"
@@ -32,7 +38,12 @@ type testServer interface {
 func TestBenchTransport(t *testing.T) {
 	ctx := context.Background()
 
-	rawSize := 1024 * 1024 * 1024
+	//logging.SetLogLevel("*", "debug")
+	//logging.SetLogLevel("blockservice", "warn")
+
+	//rawSize := 1024 * 1024 * 1024
+	//rawSize := 256 * 1024 * 1024
+	rawSize := 64 * 1024 * 1024
 	//rawSize := 2 * 1024 * 1024
 	t.Logf("Benchmark file of size %d (%.2f MB)", rawSize, float64(rawSize)/(1024*1024))
 
@@ -79,8 +90,12 @@ func TestBenchTransport(t *testing.T) {
 		req := ts.Request(authToken)
 		of := getTempFilePath(t)
 
+		client := ts.Client()
+		logging.SetLogLevel("boost-storage-deal", "debug")
+		logging.SetLogLevel("http-transport", "debug")
+
 		xferStart := time.Now()
-		th := executeTransfer(t, ctx, ts.Client(), carSize, req, of)
+		th := executeTransfer(t, ctx, client, carSize, req, of)
 		require.NotNil(t, th)
 
 		// Wait for the transfer to complete
@@ -97,18 +112,20 @@ func TestBenchTransport(t *testing.T) {
 	}
 
 	t.Run("http over libp2p", func(t *testing.T) {
-		clientHost, srvHost := setupLibp2pHosts(t)
+		srvMA, _ := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/5701")
+		clientHost, srvHost := setupBenchLibp2pHosts(t, srvMA)
 		defer srvHost.Close()
 		defer clientHost.Close()
 
 		authDB := NewAuthTokenDB(ds)
 		srv := NewLibp2pCarServer(srvHost, authDB, bs, ServerConfig{
-			AnnounceAddr: srvHost.Addrs()[0],
+			BlockInfoCacheManager: car2.NewDelayedUnrefBICM(time.Minute),
 		})
 		err = srv.Start(ctx)
 		require.NoError(t, err)
 
 		bsrv := &benchLibp2pHttpServer{
+			t:          t,
 			srvHost:    srvHost,
 			clientHost: clientHost,
 			srv:        srv,
@@ -118,23 +135,26 @@ func TestBenchTransport(t *testing.T) {
 	})
 
 	t.Run("raw http", func(t *testing.T) {
-		clientHost, srvHost := setupLibp2pHosts(t)
+		srvMA, _ := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/9000")
+		clientHost, srvHost := setupBenchLibp2pHosts(t, srvMA)
 		defer srvHost.Close()
 		defer clientHost.Close()
 
 		authDB := NewAuthTokenDB(ds)
 		srv := NewLibp2pCarServer(srvHost, authDB, bs, ServerConfig{
-			AnnounceAddr: srvHost.Addrs()[0],
+			BlockInfoCacheManager: car2.NewDelayedUnrefBICM(time.Minute),
 		})
+		srv.ctx, srv.cancel = context.WithCancel(ctx)
 		srv.transfersMgr.start(ctx)
 
 		http.HandleFunc("/", srv.handler)
-		listenAddr := "127.0.0.1:8080"
+		listenAddr := "127.0.0.1:5701"
 		go func() {
 			_ = http.ListenAndServe(listenAddr, nil)
 		}()
 
 		bsrv := &benchRawHttpServer{
+			t:          t,
 			srvHost:    srvHost,
 			clientHost: clientHost,
 			srv:        srv,
@@ -145,7 +165,19 @@ func TestBenchTransport(t *testing.T) {
 	})
 }
 
+func setupBenchLibp2pHosts(t *testing.T, srvMA multiaddr.Multiaddr) (host.Host, host.Host) {
+	clientMA, _ := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	clientHost := newHost(t, clientMA)
+	srvHost := newHost(t, srvMA)
+
+	//clientHost.Peerstore().AddAddrs(srvHost.ID(), srvHost.Addrs(), peerstore.PermanentAddrTTL)
+	//srvHost.Peerstore().AddAddrs(clientHost.ID(), clientHost.Addrs(), peerstore.PermanentAddrTTL)
+
+	return clientHost, srvHost
+}
+
 type benchRawHttpServer struct {
+	t          *testing.T
 	srvHost    host.Host
 	clientHost host.Host
 	srv        *Libp2pCarServer
@@ -162,7 +194,7 @@ func (s *benchRawHttpServer) Request(authToken string) types.HttpRequest {
 }
 
 func (s *benchRawHttpServer) Client() *httpTransport {
-	return New(nil)
+	return New(s.clientHost, newDealLogger(s.t, context.Background()))
 }
 
 func (s *benchRawHttpServer) Server() *Libp2pCarServer {
@@ -174,17 +206,24 @@ func (s *benchRawHttpServer) Stop() error {
 }
 
 type benchLibp2pHttpServer struct {
+	t          *testing.T
 	srvHost    host.Host
 	clientHost host.Host
 	srv        *Libp2pCarServer
 }
 
 func (s *benchLibp2pHttpServer) Request(authToken string) types.HttpRequest {
+	//return types.HttpRequest{
+	//	URL: "libp2p:///ip4/127.0.0.1/tcp/5700/p2p/" + s.srvHost.ID().Pretty(),
+	//	Headers: map[string]string{
+	//		"Authorization": BasicAuthHeader("", authToken),
+	//	},
+	//}
 	return newLibp2pHttpRequest(s.srvHost, authToken)
 }
 
 func (s *benchLibp2pHttpServer) Client() *httpTransport {
-	return New(s.clientHost)
+	return New(s.clientHost, newDealLogger(s.t, context.Background()))
 }
 
 func (s *benchLibp2pHttpServer) Server() *Libp2pCarServer {
