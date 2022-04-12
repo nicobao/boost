@@ -186,9 +186,9 @@ func (d *DealsDB) ByID(ctx context.Context, id uuid.UUID) (*types.ProviderDealSt
 	return d.scanRow(row)
 }
 
-func (d *DealsDB) ByPublishCID(ctx context.Context, publishCid string) (*types.ProviderDealState, error) {
-	qry := "SELECT " + dealFieldsStr + " FROM Deals WHERE PublishCID=?"
-	row := d.db.QueryRowContext(ctx, qry, publishCid)
+func (d *DealsDB) ByPieceCID(ctx context.Context, pieceCid string) (*types.ProviderDealState, error) {
+	qry := "SELECT " + dealFieldsStr + " FROM Deals WHERE PieceCID=?"
+	row := d.db.QueryRowContext(ctx, qry, pieceCid)
 	return d.scanRow(row)
 }
 

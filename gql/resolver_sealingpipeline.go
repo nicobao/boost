@@ -183,8 +183,7 @@ func (r *resolver) populateWaitDealsSectors(ctx context.Context, sectorNumbers [
 			if p.DealInfo == nil {
 				continue
 			}
-			//TODO: any other way to map deal from sector with deal from db?
-			d, err := r.dealByPublishCID(ctx, p.DealInfo.PublishCid)
+			d, err := r.dealByPieceCID(ctx, &p.Piece.PieceCID)
 			if err != nil {
 				return nil, err
 			}
