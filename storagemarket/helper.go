@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-state-types/abi"
 	market8 "github.com/filecoin-project/go-state-types/builtin/v8/market"
@@ -13,6 +14,7 @@ import (
 	"github.com/filecoin-project/lotus/api/v1api"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/market"
 	ctypes "github.com/filecoin-project/lotus/chain/types"
+	"github.com/ipfs/go-cid"
 )
 
 type ChainDealManagerCfg struct {
@@ -151,7 +153,7 @@ func (c *ChainDealManager) dealIDFromPublishDealsMsg(ctx context.Context, tok ct
 	if dealIdx >= len(pubDealsParams.Deals) {
 		return dealID, ctypes.EmptyTSK, fmt.Errorf(
 			"deal index %d out of bounds of deal proposals (len %d) in publish deals message %s",
-			dealIdx, len(dealIDs), publishCid)
+			dealIdx, len(pubDealsParams.Deals), publishCid)
 	}
 
 	valid, outIdx, err := retval.IsDealValid(uint64(dealIdx))

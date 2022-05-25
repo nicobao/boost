@@ -96,19 +96,10 @@ func (p *Provider) remoteCommP(filepath string) (*abi.PieceInfo, *dealMakingErro
 		}
 	}()
 
-	var size uint64
-	switch rd.Version {
-	case 2:
-		size = uint64(rd.Header.DataSize)
-	case 1:
-		st, err := os.Stat(filepath)
-		if err != nil {
-			return nil, &dealMakingError{
-				retry: types.DealRetryFatal,
-				error: fmt.Errorf("failed to get file size: %w", err),
-			}
-		}
-		size = uint64(st.Size())
+	// Get the size of the CAR file
+	size, err := getCarSize(filepath, rd)
+	if err != nil {
+		return nil, &dealMakingError{retry: types.DealRetryFatal, error: err}
 	}
 
 	// Get the data portion of the CAR file
@@ -116,7 +107,7 @@ func (p *Provider) remoteCommP(filepath string) (*abi.PieceInfo, *dealMakingErro
 
 	// The commp calculation requires the data to be of length
 	// pieceSize.Unpadded(), so add zeros until it reaches that size
-	pr, numBytes := padreader.New(dataReader, size)
+	pr, numBytes := padreader.New(dataReader, uint64(size))
 	log.Debugw("computing remote commp", "size", size, "padded-size", numBytes)
 	pi, err := p.commpCalc.ComputeDataCid(p.ctx, numBytes, pr)
 	if err != nil {
@@ -154,16 +145,10 @@ func GenerateCommP(filepath string) (*abi.PieceInfo, error) {
 		return nil, fmt.Errorf("failed to write to CommP writer: %w", err)
 	}
 
-	var size int64
-	switch rd.Version {
-	case 2:
-		size = int64(rd.Header.DataSize)
-	case 1:
-		st, err := os.Stat(filepath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to stat CARv1 file: %w", err)
-		}
-		size = st.Size()
+	// get the size of the CAR file
+	size, err := getCarSize(filepath, rd)
+	if err != nil {
+		return nil, err
 	}
 
 	if written != size {
@@ -179,4 +164,19 @@ func GenerateCommP(filepath string) (*abi.PieceInfo, error) {
 		Size:     pi.PieceSize,
 		PieceCID: pi.PieceCID,
 	}, nil
+}
+
+func getCarSize(filepath string, rd *carv2.Reader) (int64, error) {
+	var size int64
+	switch rd.Version {
+	case 2:
+		size = int64(rd.Header.DataSize)
+	case 1:
+		st, err := os.Stat(filepath)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get CARv1 file size: %w", err)
+		}
+		size = st.Size()
+	}
+	return size, nil
 }
