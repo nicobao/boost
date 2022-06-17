@@ -64,6 +64,7 @@ jobs:
     steps:
       - install-deps
       - prepare
+      - run: go clean --modcache
       - go/mod-tidy-check
 
   build-all:
