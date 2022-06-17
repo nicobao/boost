@@ -151,7 +151,7 @@ jobs:
             ./configure && make && sudo make install
       - restore_cache:
           name: restore cargo cache
-          key: v3-go-deps-{{ arch }}-{{ checksum "~/go/src/github.com/filecoin-project/boost/go.sum" }}
+          key: v4-go-deps-{{ arch }}-{{ checksum "~/go/src/github.com/filecoin-project/boost/go.sum" }}
       - install-deps
       - run:
           command: make debug
@@ -168,7 +168,7 @@ jobs:
             - darwin
       - save_cache:
           name: save cargo cache
-          key: v3-go-deps-{{ arch }}-{{ checksum "~/go/src/github.com/filecoin-project/boost/go.sum" }}
+          key: v4-go-deps-{{ arch }}-{{ checksum "~/go/src/github.com/filecoin-project/boost/go.sum" }}
           paths:
             - "~/.rustup"
             - "~/.cargo"
